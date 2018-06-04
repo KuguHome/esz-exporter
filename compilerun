@@ -1,0 +1,1 @@
+GOPATH="$GOPATH:`pwd`" go build esz-exporter && ./esz-exporter -dbadresse localhost $@ ; grep esz-exporter /var/log/syslog | tail -n10
