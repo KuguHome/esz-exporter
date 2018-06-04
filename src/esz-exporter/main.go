@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log/syslog"
 	"os"
+	"syscall"
 	"time"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -66,6 +69,7 @@ func main() {
 	flag.StringVar(&ausgabePfad, "pfad", "/dev/shm", "Verzeichnispfad für Ausgabedateien")
 	flag.StringVar(&dbAdresse, "dbadresse", "kugu-analyse.c9xiiot3ga8j.eu-central-1.rds.amazonaws.com", "Adresse bzw. Hostname der Analyse-Datenbank")
 	flag.StringVar(&dbBenutzer, "dbbenutzer", "erohlicek", "Datenbank-Benutzername")
+	flag.StringVar(&dbPasswort, "dbpasswort", "", "Passwort als Parameter übergeben statt sichere Eingabeaufforderung (Achtung Sicherheitsrisiko; nur für Entwickler-Testlauf)")
 	flag.Parse()
 	if help {
 		printUsage()
@@ -82,21 +86,19 @@ func main() {
 	}
 
 	// Passwort einlesen
-	// mehrere Möglichkeiten: https://stackoverflow.com/questions/38094555/golang-read-os-stdin-input-but-dont-echo-it
-	// mehrere Möglichkeiten: https://stackoverflow.com/questions/2137357/getpasswd-functionality-in-go
-	fmt.Print("Passwort für Datenbankzugang: ")
-	/*
+	if dbPasswort == "" {
+		// mehrere Möglichkeiten: https://stackoverflow.com/questions/38094555/golang-read-os-stdin-input-but-dont-echo-it
+		// mehrere Möglichkeiten: https://stackoverflow.com/questions/2137357/getpasswd-functionality-in-go
+		fmt.Printf("Datenbankpasswort für %s: ", dbBenutzer)
 		dbPasswortBytes, err := terminal.ReadPassword(int(syscall.Stdin))
 		if err != nil {
 			fmt.Printf("FEHLER beim Einlesen des Passworts: %s\n", err)
 			os.Exit(1)
 		}
 		dbPasswort = string(dbPasswortBytes)
-	*/
-	//TODO
-	dbPasswort = "..."
-	//fmt.Printf("Passwort = >%s<\n", dbPasswort)
-	//fmt.Println("")
+		//fmt.Printf("Passwort = >%s<\n", dbPasswort)
+		//fmt.Println("")
+	}
 
 	// Entwickler-/Test-Modus
 	if debug {
@@ -166,7 +168,7 @@ func protokollVerbinden() {
 }
 
 func printUsage() {
-	fmt.Println("Aufruf:", os.Args[0], "-modus [messung|aufholen|export|zählersumme]")
+	fmt.Println("Aufruf:", os.Args[0], "-modus [messung|aufholen|export|zählersumme] [weitere-parameter...]")
 	flag.PrintDefaults()
 	os.Exit(1)
 }
