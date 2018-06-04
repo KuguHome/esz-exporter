@@ -1,3 +1,29 @@
+## Programmübersetzung
+
+```
+GOPATH="$GOPATH:`pwd`" go build esz-exporter
+```
+
+Wichtig: Die GOPATH-Variable muss gesetzt sein, auch im Shell-Profil.
+
+
+## Programmausführung
+
+Testlauf für Entwickler:
+
+```
+./compileandrun
+```
+
+Programmparameter ansehen:
+
+```
+./esz-export -h
+```
+
+Verpflichtend ist der Betriebsmodus, die restlichen Werten können optional gesetzt werden.
+
+
 ## Messung
 
 * [Datenbank SQL-Skripte](https://gitlab.kugu-home.com/infrastructure/database)
@@ -25,20 +51,20 @@ szdaten.steuerzentrale.sz_nummer -> szdaten.steuerzentrale.kunde_nummer -> kugu.
 * Wertvereinigung eines Elements berechnen (vollständige Vereinigung nicht notwendig; letzter Abschnitt reicht):
 
 	alle Elemente aller Abschnitte dieser Vereinigung:
-	
+
 	select * from szdaten.vereinigung_element where vereinelem_nummer = 1 order by vereinelem_von_datum ASC;
 
 	zuständiges Element finden:
 
 	select * from szdaten.vereinigung_element where vereinelem_nummer = 1 and vereinelem_bis_datum IS NULL;
 	-> elem_nummer
-	
+
 	Wert zur letzten Mitternacht finden:
 	(Werte sind nie genau um 00:00:00 wegen Millisekunden-Abweichung, aber in real auch nicht auf Millisekunden genau, sondern +1 bis +2 Sekunden - und vor allem nicht in der UTC-Zeitzone sondern in der Deutschland-Zeitzone.)
-	
+
 	select * from szdaten.wert_num where elem_nummer = 530;
 	select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt AT TIME ZONE 'Europe/Berlin' from szdaten.wert_num where elem_nummer = 530;
-		
+
 	select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt AT TIME ZONE 'Europe/Berlin' from szdaten.wert_num where elem_nummer = 530 and EXTRACT(HOUR FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0 and EXTRACT(MINUTE FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin) = 0;
 
 	(Stunden- und Minuten-Werte anzeigen:)
@@ -50,40 +76,40 @@ szdaten.steuerzentrale.sz_nummer -> szdaten.steuerzentrale.kunde_nummer -> kugu.
 	select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt AT TIME ZONE 'Europe/Berlin' as wert_zeitpunkt from szdaten.wert_num where elem_nummer = 530 and EXTRACT(HOUR FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0 and EXTRACT(MINUTE FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0;
 
 	-> kann mehrere Wert finden -> den, der am nähesten an Mitternacht dran ist:
-	
+
 	(Datumspalte dazunehmen für Gruppierung):
-	
+
 	select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt AT TIME ZONE 'Europe/Berlin' as wert_zeitpunkt, to_char(wert_zeitpunkt AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD') as datum from szdaten.wert_num where elem_nummer IN (308, 467, 530) and EXTRACT(HOUR FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0 and EXTRACT(MINUTE FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0 order by wert_zeitpunkt asc;
 
 	gibt mehr als 1 Eintrag:
-	
+
          3 |         530 |   23.400 | 2017-12-30 00:00:02 | 2017-12-30
          3 |         530 |   23.300 | 2017-12-30 00:00:38 | 2017-12-30
 
 
 	(Normale Gruppierung funktioniert hier nicht, weil nicht nach wert_num gruppiert wird -> Lösung mit Rang-Funktion)
-	select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt ASC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from 
+	select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt ASC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from
 		(
 		select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt AT TIME ZONE 'Europe/Berlin' as wert_zeitpunkt, to_char(wert_zeitpunkt AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD') as datum from szdaten.wert_num where elem_nummer IN (308, 467, 530) and EXTRACT(HOUR FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0 and EXTRACT(MINUTE FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0
 		) as werte_mitternacht
-		
+
 	(jetzt diejenige herausnehmen, die das Minimum sind = Rang 1 haben)
-	
-	select sz_nummer, elem_nummer, wert_num, datum 
+
+	select sz_nummer, elem_nummer, wert_num, datum
 	from (
-		select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt ASC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from 
+		select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt ASC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from
 			(
 			select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt AT TIME ZONE 'Europe/Berlin' as wert_zeitpunkt, to_char(wert_zeitpunkt AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD') as datum from szdaten.wert_num where elem_nummer = 530 and EXTRACT(HOUR FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0 and EXTRACT(MINUTE FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0
 			) as werte_mitternacht
 		) werte_mitternacht2
 	where wert_zeitpunkt_reihenfolge = 1;
-	
+
 	*WICHTIG* Sonderfall am Anfang einer Vereinigungs-Abschnitt ist kein Wert für den Tag eingetragen -> muss in vorherigem Vereinigungs-Abschnitt nachschauen.
 	(Kann in der Anwendung gemacht werden, oder hier mittels Oder-Bedingung oder IN auf elem_nummer:)
-	
-	select sz_nummer, elem_nummer, wert_num, datum 
+
+	select sz_nummer, elem_nummer, wert_num, datum
 	from (
-		select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt ASC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from 
+		select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt ASC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from
 			(
 			select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt AT TIME ZONE 'Europe/Berlin' as wert_zeitpunkt, to_char(wert_zeitpunkt AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD') as datum from szdaten.wert_num where elem_nummer IN (308, 467, 530) and EXTRACT(HOUR FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0 and EXTRACT(MINUTE FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0
 			) as werte_mitternacht
@@ -91,7 +117,7 @@ szdaten.steuerzentrale.sz_nummer -> szdaten.steuerzentrale.kunde_nummer -> kugu.
 	where wert_zeitpunkt_reihenfolge = 1;
 
 	-> Liste aller mitternachtsnächsten Zählerwerte :-)
-	
+
 	*DONE* Problem: Zählerwerte sind nicht monoton steigend am Gesamtkanal. Richtiges Element bei Zähler/Vereinigung 1?
 
 	Roh-Werte aus Datenbank:
@@ -108,12 +134,12 @@ szdaten.steuerzentrale.sz_nummer -> szdaten.steuerzentrale.kunde_nummer -> kugu.
          3 |         530 |   22.000 | 2018-01-24 05:39:45
          3 |         530 |   22.300 | 2018-01-24 06:39:49
          3 |         530 |   22.500 | 2018-01-24 07:39:52
-         
+
 	 *DONE* Teilweise keine Mitternachtswerte -> nur die normalen Abfragewerte um z.B. 00:39 -> Beschränkung auf Minute 0 lockern auf stattdessen Stunde 0.
 
-	select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt, datum 
+	select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt, datum
 	from (
-		select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt ASC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from 
+		select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt ASC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from
 			(
 			select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt AT TIME ZONE 'Europe/Berlin' as wert_zeitpunkt, to_char(wert_zeitpunkt AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD') as datum from szdaten.wert_num where elem_nummer IN (308, 467, 530)
 			) as werte_mitternacht
@@ -121,12 +147,12 @@ szdaten.steuerzentrale.sz_nummer -> szdaten.steuerzentrale.kunde_nummer -> kugu.
 	where wert_zeitpunkt_reihenfolge = 1;
 
 	-> nicht ganz zufriedenstellend. Noch immer Sprünge. Müssen Zähler1+Zähler2 als Gesamtwert zusammenzählen.
-	
+
 	Wert um Mitternacht ist nicht zuverlässig -> letzten Wert des Tages nehmen = mit höchter Zeit je Tag bzw. höchstem Rang.
 
-	select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt, datum 
+	select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt, datum
 	from (
-		select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt DESC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from 
+		select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt DESC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from
 			(
 			select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt AT TIME ZONE 'Europe/Berlin' as wert_zeitpunkt, to_char(wert_zeitpunkt AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD') as datum from szdaten.wert_num where elem_nummer IN (308, 467, 530)
 			) as werte_mitternacht
@@ -134,21 +160,21 @@ szdaten.steuerzentrale.sz_nummer -> szdaten.steuerzentrale.kunde_nummer -> kugu.
 	where wert_zeitpunkt_reihenfolge = 1;
 
 	*DONE* Sonderfall ausgetauschte Elemente können noch immer störende Werte produzieren, z.B. siehe hier:
-	
-	select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt, datum 
+
+	select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt, datum
 	from (
-		select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt ASC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from 
+		select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt ASC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from
 			(
 			select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt AT TIME ZONE 'Europe/Berlin' as wert_zeitpunkt, to_char(wert_zeitpunkt AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD') as datum from szdaten.wert_num where elem_nummer IN (290, 446)
 			) as werte_mitternacht
 		) werte_mitternacht2
 	where wert_zeitpunkt_reihenfolge = 1;
-	
+
 	-> muss in Applikation mit UNION gemacht werden und die Werte beschränkt auf den Gültigkeitszeitraum:
 
-	select sz_nummer, elem_nummer, wert_num, datum 
+	select sz_nummer, elem_nummer, wert_num, datum
 	from (
-		select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt ASC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from 
+		select RANK() OVER(PARTITION BY datum ORDER BY wert_zeitpunkt ASC) as wert_zeitpunkt_reihenfolge, werte_mitternacht.* from
 			(
 			select sz_nummer, elem_nummer, wert_num, wert_zeitpunkt AT TIME ZONE 'Europe/Berlin' as wert_zeitpunkt, to_char(wert_zeitpunkt AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD') as datum from szdaten.wert_num where elem_nummer = 530 and to_date(wert_zeitpunkt) between [...] and [...] and EXTRACT(HOUR FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0 and EXTRACT(MINUTE FROM wert_zeitpunkt AT TIME ZONE 'Europe/Berlin') = 0
 			) as werte_mitternacht
