@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"fmt"
 	"log/syslog"
@@ -60,7 +61,7 @@ func main() {
 	var help, debug bool
 	flag.BoolVar(&help, "h", false, "Programmhilfe und Parameter ausgeben")
 	flag.BoolVar(&debug, "debug", false, "detaillierte Programmausgabe")
-	flag.StringVar(&modus, "modus", "messung", "Betriebsmodus umschalten: messung, aufholen, zählersumme, export")
+	flag.StringVar(&modus, "modus", "messung", "Betriebsmodus umschalten: messung, aufholen, zählersumme, exportbefüllen, exportieren")
 	flag.IntVar(&kundeNummer, "kunde", 1, "Endkunden auswählen")
 	flag.IntVar(&jahr, "jahr", 2018, "Export: Jahr auswählen")
 	flag.IntVar(&monat, "monat", 5, "Export: Monat auswählen")
@@ -118,9 +119,12 @@ func main() {
 	case "aufholen":
 		// nur einmal auszuführen
 		go messungDurchführen(jetzt, true, erledigt)
-	case "export":
-		// Export-Einträge generieren und Export durchführen
-		go exportDurchführen(ausgabePfad, erledigt)
+	case "exportbefüllen":
+		// Monatsexport: vor Exportieren durchführen
+		go exportBefüllenDurchführen(erledigt)
+	case "exportieren":
+		// Export-Einträge aus Export-Tabelle holen und in Datei exportieren
+		go exportDateiDurchführen(ausgabePfad, erledigt)
 	case "zählersumme":
 		// Zählersumme jährlich -> Zählersumme befüllen
 		go zählerSummeErstellen(time.Now().In(zeitzone), erledigt)
@@ -168,7 +172,23 @@ func protokollVerbinden() {
 }
 
 func printUsage() {
-	fmt.Println("Aufruf:", os.Args[0], "-modus [messung|aufholen|export|zählersumme] [weitere-parameter...]")
+	fmt.Println("Aufruf:", os.Args[0], "-modus [messung|aufholen|exportbefüllen|exportieren|zählersumme] [weitere-parameter...]")
 	flag.PrintDefaults()
 	os.Exit(1)
+}
+
+func verbindeDatenbank() (db *sql.DB, err error) {
+	// Datenbankverbindung aufbauen
+	// Dokumentation @ https://github.com/golang/go/wiki/SQLInterface
+	db, err = sql.Open("postgres", fmt.Sprintf("host=%s sslmode=disable connect_timeout=%d user=%s password=%s dbname=%s", dbAdresse, dbWartezeit, dbBenutzer, dbPasswort, dbDatenbank))
+	if err != nil {
+		return nil, fmt.Errorf("[%s] Datenbankverbindung fehlgeschlagen: %s", modus, err)
+	}
+	log.Debug(fmt.Sprintf("[%s] Datenbankverbindung erfolgreich", modus))
+
+	return db, err
+}
+
+func trenneDatenbank(db *sql.DB) {
+	db.Close()
 }

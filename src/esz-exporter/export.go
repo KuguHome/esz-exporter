@@ -13,18 +13,26 @@ import (
 	timeutil "github.com/jinzhu/now"
 )
 
-func exportDurchführen(ausgabePfad string, erledigt chan<- error) {
+func exportBefüllenDurchführen(erledigt chan<- error) {
 	// Exporttabelle befüllen
+	//TODO Funktion exporttabelleBefüllen() ev. hier hereinziehen
 	if err := exporttabelleBefüllen(kundeNummer, jahr, monat); err != nil {
 		erledigt <- fmt.Errorf("Konnte Export-Tabelle nicht befüllen: %s", err)
 		return
 	}
 	log.Info(fmt.Sprintf("[%s] Export-Tabelle erfolgreich befüllt", modus))
 
+	erledigt <- nil
+	return
+}
+
+func exportDateiDurchführen(ausgabePfad string, erledigt chan<- error) {
+	log.Info(fmt.Sprintf("[%s] Starte mit Exportdatei-Generierung für Endkunde %d", modus, kundeNummer))
 	// Testdaten
 	//var daten = [][]string{{"Spalte1", "Spalte2"}, {"Wert1.1", "Wert1.2"}, {"Wert2.1", "Wert2.2"}}
 
 	// Realdaten aus Export-Tabelle
+	log.Info(fmt.Sprintf("[%s] Hole Daten für Endkunde %d aus Export-Tabelle", modus, kundeNummer))
 	exportDaten, err := holeExporttabelle(0) ///TODO bis zu welcher Messung wurde schon exportiert?
 	if err != nil {
 		erledigt <- fmt.Errorf("Konnte Daten aus Export-Tabelle nicht holen: %s", err)
@@ -40,8 +48,12 @@ func exportDurchführen(ausgabePfad string, erledigt chan<- error) {
 	*/
 
 	// eine Messung je CSV-Datei
+	log.Info(fmt.Sprintf("[%s] Erzeuge Exportdateien für Endkunde %d", modus, kundeNummer))
 	dateipfadeZippen := []string{}
 	for index, eintrag := range exportDaten {
+		if (index+1)%25 == 0 {
+			log.Info(fmt.Sprintf("[%s] Fortschritt: %d von %d", modus, index+1, len(exportDaten)))
+		}
 		fmt.Printf("Exportdatensatz %d: %v\n", index+1, eintrag)
 		// in CSV-Eintrag konvertieren
 		csvEintrag := eintrag.String()
@@ -81,8 +93,10 @@ func exportDurchführen(ausgabePfad string, erledigt chan<- error) {
 		// Dateiname merken
 		dateipfadeZippen = append(dateipfadeZippen, dateiPfad)
 	}
+	log.Info(fmt.Sprintf("[%s] Fortschritt: %d von %d - fertig.", modus, len(exportDaten), len(exportDaten)))
 
 	// ZIP-Kompression der CSV-Datei
+	log.Info(fmt.Sprintf("[%s] Erstelle Abgabedatei für Endkunde %d", modus, kundeNummer))
 	//if err := zipKompression(ausgabePfad+".zip", []string{ausgabePfad + ".csv"}); err != nil {
 	zipArchivpfad := fmt.Sprintf("%s/esz-export-kugu-%s.zip", ausgabePfad, jetzt.Format(isoZeitformatFreundlich))
 	if err := zipKompression(zipArchivpfad, dateipfadeZippen); err != nil {
@@ -333,7 +347,7 @@ func exporttabelleBefüllen(kundeNummer int, jahr int, monat int) (err error) {
 
 	// Anzahl Zähler dieses Kunden holen
 	anzZähler, err := anzahlZähler(db, kundeNummer)
-	anzZähler = 1 ///TODO
+	//anzZähler = 1 ///TODO
 	if err != nil {
 		return fmt.Errorf("Export-Einträge generieren: %s", err)
 	}
@@ -348,6 +362,24 @@ func exporttabelleBefüllen(kundeNummer int, jahr int, monat int) (err error) {
 	var anzZeilen int64
 	var ergebnis sql.Result
 	for _, ds := range datenExport {
+		// für dieses Datum zuständige Zählersummen-Einträge holen
+		// NOTE: könnte auch direkt in Abfrage oben mitgemacht werden.
+		_, _, zsBasislinieWert, zsBasislinieFaktor, err := holeZählersummeBasislinie(db, kundeNummer, zählerNummer)
+		if err != nil {
+			log.Warning(fmt.Sprintf("[%s] WARNUNG: Keine Basislinie für Kunde %d Zähler %d vorhanden, ignoriere", modus, kundeNummer, zählerNummer))
+		} else {
+			ds.ZählersummeSummeBasislinie = zsBasislinieWert
+			ds.ZählersummeSummeBasislinieBereinigt = zsBasislinieWert * zsBasislinieFaktor
+		}
+		datumStr := ds.MessungDatum.Format(isoDatumformat)
+		zsWert, zsFaktor, err := holeZählersummeFürDatum(db, kundeNummer, zählerNummer, datumStr)
+		if err != nil {
+			log.Warning(fmt.Sprintf("[%s] WARNUNG: Keine Basislinie für Kunde %d Zähler %d und Datum %s vorhanden, ignoriere", modus, kundeNummer, zählerNummer, datumStr))
+		} else {
+			ds.ZählersummeSummeEingespart = zsWert
+			ds.ZählersummeSummeEingespartBereinigt = zsWert * zsFaktor
+		}
+
 		// Eintrag anlegen
 		ergebnis, err = db.Exec(`insert into esz.export (
 			konfig_antragsteller_nummer,
