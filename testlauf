@@ -1,0 +1,76 @@
+#!/bin/bash
+. ./db_konfiguration
+PARAMS="-dbadresse localhost -dbbenutzer $DB_BENUTZER -dbpasswort $DB_PASSWORT"
+
+KUNDE=1
+JAHR=2018
+MONAT=5
+
+# Teile des Testlaufs angeben
+
+aufholen=false
+befuellen=false
+exportieren=true
+
+# alle Messungen aufholen für alle Zähler Endkunde 1
+
+if [[ $aufholen == "true" ]]
+then
+
+./esz-exporter $PARAMS -modus aufholen -zähler 1 -vereinigung 33
+read
+./esz-exporter $PARAMS -modus aufholen -zähler 2 -vereinigung 34
+read
+./esz-exporter $PARAMS -modus aufholen -zähler 3 -vereinigung 35
+read
+./esz-exporter $PARAMS -modus aufholen -zähler 4 -vereinigung 36
+read
+./esz-exporter $PARAMS -modus aufholen -zähler 5 -vereinigung 37
+read
+./esz-exporter $PARAMS -modus aufholen -zähler 6 -vereinigung 38
+read
+./esz-exporter $PARAMS -modus aufholen -zähler 7 -vereinigung 39
+read
+./esz-exporter $PARAMS -modus aufholen -zähler 8 -vereinigung 40
+read
+./esz-exporter $PARAMS -modus aufholen -zähler 9 -vereinigung 41
+read
+./esz-exporter $PARAMS -modus aufholen -zähler 10 -vereinigung 42
+read
+./esz-exporter $PARAMS -modus aufholen -zähler 11 -vereinigung 43
+read
+
+fi
+
+# Zählersummen sollten für nächsten Schritt vorbereitet sein.
+
+# Export befüllen für Monat
+# für gesamten Endkunden (weil für jeden Endkunden 1 ZIP-Datei)
+
+if [[ $befuellen == "true" ]]
+then
+
+./esz-exporter $PARAMS -modus exportbefüllen -kunde $KUNDE -jahr $JAHR -monat $MONAT
+read
+
+fi
+
+# Export herausziehen für Monat
+# für gesamten Endkunden
+
+if [[ $exportieren == "true" ]]
+then
+
+./esz-exporter $PARAMS -modus exportieren -kunde $KUNDE -jahr $JAHR -monat $MONAT
+#read
+
+fi
+
+echo "Fertig."
+
+
+# Zurücksetzen mittels:
+
+# delete from esz.messung;
+# delete from esz.zaehlersumme where zaehlersum_zeitraum_art != 'Basislinie';
+# delete from esz.export;
