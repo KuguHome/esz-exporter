@@ -2,10 +2,12 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -73,7 +75,9 @@ func exportDateiDurchführen(ausgabePfad string, erledigt chan<- error) {
 		//TODO Anzahl der CSV − Dateien im Monat = Anzahl der Zähler (bei allen Endkunden) ∗ Anzahl der Tage im Monat
 
 		// CSV-Schreiber anlegen
-		csv := csv.NewWriter(datei)
+		//csv := csv.NewWriter(datei)
+		buf := &bytes.Buffer{}
+		csv := csv.NewWriter(buf)
 		csv.Comma = csvTrennzeichen
 		//defer csv.Flush()
 
@@ -81,13 +85,18 @@ func exportDateiDurchführen(ausgabePfad string, erledigt chan<- error) {
 		//for _, eintrag := range csvDaten {
 		err = csv.Write(csvEintrag)
 		if err != nil {
-			erledigt <- fmt.Errorf("Konnte nicht in Datei schreiben: %s", err)
+			erledigt <- fmt.Errorf("Konnte nicht in CSV-Schreiber schreiben: %s", err)
 			return
 		}
 		//}
 
 		// CSV-Ausgabe abschließen
 		csv.Flush()
+		_, err = datei.Write(bytes.TrimSpace(buf.Bytes()))
+		if err != nil {
+			erledigt <- fmt.Errorf("Konnte nicht in Datei schreiben: %s", err)
+			return
+		}
 		datei.Close()
 
 		// Dateiname merken
@@ -214,13 +223,13 @@ const eszDatumformat = "20060102"
 
 func (ds ExportDatensatz) String() []string {
 	return []string{
-		strconv.Itoa(ds.AntragstellerNummer),
+		fmt.Sprintf("%03d", ds.AntragstellerNummer),
 		strconv.Itoa(ds.MessungNummer),
 		strconv.Itoa(ds.KundeNummer),
 		strconv.Itoa(ds.EndkundeSystemArt),
 		strconv.Itoa(ds.EndkundeGröße),
 		strconv.Itoa(ds.EndkundeBranche),
-		strconv.Itoa(ds.EndkundePostleitzahl),
+		fmt.Sprintf("%05d", ds.EndkundePostleitzahl),
 		strconv.Itoa(ds.EndkundeBewohnerAnzahl),
 		strconv.Itoa(ds.EndkundeGebäudeTyp),
 		strconv.Itoa(ds.EndkundeBaualterklasse),
@@ -234,19 +243,28 @@ func (ds ExportDatensatz) String() []string {
 		ds.ZählerGeräteSonstiges,
 		strconv.Itoa(ds.ZählerTyp),
 		strconv.Itoa(ds.ZählerEnergieträger),
-		strconv.FormatFloat(ds.MessungZählerstand, 'f', 5, 64), //TODO geforderte Anzahl Nachkommastellen?
-		strconv.Itoa(ds.OptimierungMaßnahme),
+		strconv.FormatFloat(math.Round(ds.MessungZählerstand), 'f', 0, 64), // soll kaufmännisch gerundet werden
+		fmt.Sprintf("%02d", ds.OptimierungMaßnahme),                        // soll immer zweistllig sein
 		ds.OptimierungSonstiges,
 		strconv.Itoa(ds.EndkundeSMGStatus),
-		strconv.FormatFloat(ds.ZählersummeSummeEingespart, 'f', 5, 64),          //TODO geforderte Anzahl Nachkommastellen?
-		strconv.FormatFloat(ds.ZählersummeSummeEingespartBereinigt, 'f', 5, 64), //TODO geforderte Anzahl Nachkommastellen?
+		strconv.FormatFloat(math.Round(undefiniertZuNull(ds.ZählersummeSummeEingespart)), 'f', 0, 64),          // soll kaufmännisch gerundet werden
+		strconv.FormatFloat(math.Round(undefiniertZuNull(ds.ZählersummeSummeEingespartBereinigt)), 'f', 0, 64), // soll kaufmännisch gerundet werden
 		strconv.Itoa(ds.Abfragehäufigkeit),
-		strconv.FormatFloat(ds.Klimafaktor, 'f', 5, 64), //TODO geforderte Anzahl Nachkommastellen?
-		"", "", "", "", "", "", "", "", "", "", "", "", // entfallende Felder: 4x Einfluss und 2x Nutzen mit jeweils Wert und Art
-		strconv.FormatFloat(ds.ZählersummeSummeBasislinie, 'f', 5, 64),          //TODO geforderte Anzahl Nachkommastellen?
-		strconv.FormatFloat(ds.ZählersummeSummeBasislinieBereinigt, 'f', 5, 64), //TODO geforderte Anzahl Nachkommastellen?
-		"", "", "", "", "", "", // entfallende Felder: 4x Einfluss, 2x Nutzen
+		strconv.FormatFloat(undefiniertZuNull(ds.Klimafaktor), 'f', 3, 64), // RZ(3) = drei Kommastellen
+		"0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", // entfallende Felder: 4x Einfluss und 2x Nutzen mit jeweils Wert und Art
+		strconv.FormatFloat(math.Round(undefiniertZuNull(ds.ZählersummeSummeBasislinie)), 'f', 0, 64),          // soll kaufmännisch gerundet werden
+		strconv.FormatFloat(math.Round(undefiniertZuNull(ds.ZählersummeSummeBasislinieBereinigt)), 'f', 0, 64), // soll kaufmännisch gerundet werden
+		"0", "0", "0", "0", "0", "0", // entfallende Felder: 4x Einfluss, 2x Nutzen
 	}
+}
+
+func undefiniertZuNull(wert float64) float64 {
+	// undefiniert zu 0 übersetzen
+	if wert == -1.0 {
+		return 0.0
+	}
+	// ansonsten normalen Wert zurückliefern
+	return wert
 }
 
 func exporttabelleBefüllen(kundeNummer int, jahr int, monat int) (err error) {
