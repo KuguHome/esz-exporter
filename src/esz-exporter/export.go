@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	timeutil "github.com/jinzhu/now"
@@ -239,18 +240,18 @@ func (ds ExportDatensatz) String() []string {
 		strconv.Itoa(ds.ZählerID),
 		strconv.Itoa(ds.ZählerIDÜbergeordnet),
 		strconv.Itoa(ds.ZählerArt),
-		strconv.Itoa(ds.ZählerGeräteArt),
+		fmt.Sprintf("%02d", ds.ZählerGeräteArt),
 		ds.ZählerGeräteSonstiges,
 		strconv.Itoa(ds.ZählerTyp),
 		strconv.Itoa(ds.ZählerEnergieträger),
 		strconv.FormatFloat(math.Round(ds.MessungZählerstand), 'f', 0, 64), // soll kaufmännisch gerundet werden
-		fmt.Sprintf("%02d", ds.OptimierungMaßnahme),                        // soll immer zweistllig sein
+		fmt.Sprintf("%04d", ds.OptimierungMaßnahme),                        // soll immer vierstllig sein (2x zweistellig, besteht also aus 2 Codes)
 		ds.OptimierungSonstiges,
 		strconv.Itoa(ds.EndkundeSMGStatus),
 		strconv.FormatFloat(math.Round(undefiniertZuNull(ds.ZählersummeSummeEingespart)), 'f', 0, 64),          // soll kaufmännisch gerundet werden
 		strconv.FormatFloat(math.Round(undefiniertZuNull(ds.ZählersummeSummeEingespartBereinigt)), 'f', 0, 64), // soll kaufmännisch gerundet werden
 		strconv.Itoa(ds.Abfragehäufigkeit),
-		strconv.FormatFloat(undefiniertZuNull(ds.Klimafaktor), 'f', 3, 64), // RZ(3) = drei Kommastellen
+		zahlENGzuDE(strconv.FormatFloat(undefiniertZuNull(ds.Klimafaktor), 'f', 3, 64)), // RZ(3) = drei Kommastellen
 		"0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", // entfallende Felder: 4x Einfluss und 2x Nutzen mit jeweils Wert und Art
 		strconv.FormatFloat(math.Round(undefiniertZuNull(ds.ZählersummeSummeBasislinie)), 'f', 0, 64),          // soll kaufmännisch gerundet werden
 		strconv.FormatFloat(math.Round(undefiniertZuNull(ds.ZählersummeSummeBasislinieBereinigt)), 'f', 0, 64), // soll kaufmännisch gerundet werden
@@ -265,6 +266,10 @@ func undefiniertZuNull(wert float64) float64 {
 	}
 	// ansonsten normalen Wert zurückliefern
 	return wert
+}
+
+func zahlENGzuDE(zahlStr string) string {
+	return strings.Replace(zahlStr, ".", ",", 1)
 }
 
 func exporttabelleBefüllen(kundeNummer int, jahr int, monat int) (err error) {
