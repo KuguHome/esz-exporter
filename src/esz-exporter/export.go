@@ -224,7 +224,7 @@ const eszDatumformat = "20060102"
 
 func (ds ExportDatensatz) String() []string {
 	return []string{
-		fmt.Sprintf("%3d", ds.AntragstellerNummer),
+		fmt.Sprintf("%2d", ds.AntragstellerNummer),
 		strconv.Itoa(ds.MessungNummer),
 		strconv.Itoa(ds.KundeNummer),
 		strconv.Itoa(ds.EndkundeSystemArt),
