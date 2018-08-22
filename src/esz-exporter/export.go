@@ -62,7 +62,7 @@ func exportDateiDurchführen(ausgabePfad string, erledigt chan<- error) {
 		csvEintrag := eintrag.String()
 
 		// Datei anlegen
-		dateiPfad := fmt.Sprintf("%s/%s-%d.csv", ausgabePfad, antragsteller, eintrag.MessungNummer)
+		dateiPfad := fmt.Sprintf("%s/%03d-%d.csv", ausgabePfad, antragsteller, eintrag.MessungNummer)
 		datei, err := os.Create(dateiPfad)
 		if err != nil {
 			erledigt <- fmt.Errorf("Konnte Datei nicht anlegen: %s", err)
@@ -224,7 +224,7 @@ const eszDatumformat = "20060102"
 
 func (ds ExportDatensatz) String() []string {
 	return []string{
-		fmt.Sprintf("%03d", ds.AntragstellerNummer),
+		fmt.Sprintf("%3d", ds.AntragstellerNummer),
 		strconv.Itoa(ds.MessungNummer),
 		strconv.Itoa(ds.KundeNummer),
 		strconv.Itoa(ds.EndkundeSystemArt),
