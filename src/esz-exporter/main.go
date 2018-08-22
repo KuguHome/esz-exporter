@@ -26,7 +26,7 @@ const (
 	// Protokollierung
 	logName = "esz-exporter"
 	// statische Werte in den Exportdaten
-	antragsteller     = "024" // nicht 2017024
+	antragsteller     = "24" // nicht 2017024
 	abfragehäufigkeit = "4"
 	csvTrennzeichen   = ';'
 )
