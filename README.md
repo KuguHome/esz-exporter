@@ -63,3 +63,8 @@ curl -v -A "KEY=GEHEIMERKEY" -F "data=@$1" https://m2m.test.esz-verwendungsnachw
 Dabei muss `GEHEIMERKEY` durch den von der BAFA bereitgestellten Schlüssel ersetzt werden.
 
 Nach dem ersten Upload muss dann manuell durch die BAFA der Einsprungpunkt gesetzt werden, damit die hochgeladenen Daten unter https://www.test.esz-verwendungsnachweis.de/home2/vis/# sichtbar werden. Spätere Uploads werden dann automatisch sichtbar.
+
+
+## [DBASU] Usage Notes
+
+
