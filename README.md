@@ -70,7 +70,7 @@ Nach dem ersten Upload muss dann manuell durch die BAFA der Einsprungpunkt geset
 > As of 12/02/2019
 
 * Save credentials to .env file in /tmp
-* load credentials into environment varia
+* load credentials into environment variables and invoke the binary using the following options - 
   ```sh
   source /tmp/.env
   ./esz-exporter \
@@ -82,3 +82,7 @@ Nach dem ersten Upload muss dann manuell durch die BAFA der Einsprungpunkt geset
       -kunde 3 \
       -dbadresse localhost
   ```
+* Common issues -- 
+  + check the log at `tail -f /var/log/syslog` for details. How to redirect to stderr ? 
+  + make sure the `-pfad` target exists
+  + use `-dbadresse localhost` for jupyter. The default amazon rds instance is not working/ is ip filtered. 
