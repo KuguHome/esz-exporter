@@ -65,6 +65,20 @@ Dabei muss `GEHEIMERKEY` durch den von der BAFA bereitgestellten Schlüssel erse
 Nach dem ersten Upload muss dann manuell durch die BAFA der Einsprungpunkt gesetzt werden, damit die hochgeladenen Daten unter https://www.test.esz-verwendungsnachweis.de/home2/vis/# sichtbar werden. Spätere Uploads werden dann automatisch sichtbar.
 
 
-## [DBASU] Usage Notes
+## [dbasu on kugu-jupyter] Usage Notes
 
+> As of 12/02/2019
 
+* Save credentials to .env file in /tmp
+* load credentials into environment varia
+  ```sh
+  source /tmp/.env
+  ./esz-exporter \
+      -debug \
+      -dbbenutzer $ZK_PG_USER \
+      -dbpasswort $ZK_PG_PASS \
+      -modus [messung|aufholen|exportbefüllen|exportieren|zählersumme] \
+      -pfad /tmp/export \
+      -kunde 3 \
+      -dbadresse localhost
+  ```
