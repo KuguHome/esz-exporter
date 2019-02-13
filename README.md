@@ -64,13 +64,12 @@ Dabei muss `GEHEIMERKEY` durch den von der BAFA bereitgestellten Schlüssel erse
 
 Nach dem ersten Upload muss dann manuell durch die BAFA der Einsprungpunkt gesetzt werden, damit die hochgeladenen Daten unter https://www.test.esz-verwendungsnachweis.de/home2/vis/# sichtbar werden. Spätere Uploads werden dann automatisch sichtbar.
 
+## Nutzungshinweise / Usage Notes
 
-## [dbasu on kugu-jupyter] Usage Notes
+Einige Hilfen für eine typische Nutzung:
 
-> As of 12/02/2019
-
-* Save credentials to .env file in /tmp
-* load credentials into environment variables and invoke the binary using the following options - 
+* Save credentials into environment variables at `/tmp/.env`
+* Invoke the binary using the credentials from the environment variables with the following options  
   ```sh
   source /tmp/.env
   ./esz-exporter \
@@ -82,7 +81,7 @@ Nach dem ersten Upload muss dann manuell durch die BAFA der Einsprungpunkt geset
       -kunde 3 \
       -dbadresse localhost
   ```
-* Common issues -- 
-  + check the log at `tail -f /var/log/syslog` for details. How to redirect to stderr ? 
-  + make sure the `-pfad` target exists
-  + use `-dbadresse localhost` for jupyter. The default amazon rds instance is not working/ is ip filtered. 
+* `localhost` can be used if the port of a remote database is forwarded to the local machine via SSH
+* Common issues
+	+ make sure the `-pfad` target exists
+	+ check the log at `tail -f /var/log/syslog` for details.
