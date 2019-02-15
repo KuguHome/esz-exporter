@@ -63,3 +63,25 @@ curl -v -A "KEY=GEHEIMERKEY" -F "data=@$1" https://m2m.test.esz-verwendungsnachw
 Dabei muss `GEHEIMERKEY` durch den von der BAFA bereitgestellten Schlüssel ersetzt werden.
 
 Nach dem ersten Upload muss dann manuell durch die BAFA der Einsprungpunkt gesetzt werden, damit die hochgeladenen Daten unter https://www.test.esz-verwendungsnachweis.de/home2/vis/# sichtbar werden. Spätere Uploads werden dann automatisch sichtbar.
+
+## Nutzungshinweise / Usage Notes
+
+Einige Hilfen für eine typische Nutzung:
+
+* Save credentials into environment variables at `/tmp/.env`
+* Invoke the binary using the credentials from the environment variables with the following options  
+  ```sh
+  source /tmp/.env
+  ./esz-exporter \
+      -debug \
+      -dbbenutzer $ZK_PG_USER \
+      -dbpasswort $ZK_PG_PASS \
+      -modus [messung|aufholen|exportbefüllen|exportieren|zählersumme] \
+      -pfad /tmp/export \
+      -kunde 3 \
+      -dbadresse localhost
+  ```
+* `localhost` can be used if the port of a remote database is forwarded to the local machine via SSH
+* Common issues
+	+ make sure the `-pfad` target exists
+	+ check the log at `tail -f /var/log/syslog` for details.
