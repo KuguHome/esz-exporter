@@ -1,2 +1,5 @@
 db_konfiguration
 esz-exporter
+pkg/
+src/
+!src/esz-exporter
