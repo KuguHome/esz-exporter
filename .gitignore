@@ -2,4 +2,6 @@ db_konfiguration
 esz-exporter
 pkg/
 src/
+bin/
 !src/esz-exporter
+trace.out
