@@ -4,12 +4,11 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"golang.org/x/crypto/ssh/terminal"
 	"log/syslog"
 	"os"
 	"syscall"
 	"time"
-
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
