@@ -1,58 +1,61 @@
 #!/bin/bash
-. ./db_konfiguration
-PARAMS="-dbadresse localhost -dbbenutzer $DB_BENUTZER -dbpasswort $DB_PASSWORT"
+#. ./db_konfiguration
+#
+source $KUGUDIR/.env
+EXPORT_DIR=/tmp/esz-export
+PARAMS="-dbadresse localhost -dbbenutzer $ZK_PG_USER -dbpasswort $ZK_PG_PASS -pfad $EXPORT_DIR"
 
 KUNDE=1
 JAHR=2018
-MONAT=5
+MONAT=6
 
 # Teile des Testlaufs angeben
 
-aufholen=false
+aufholen=true
 befuellen=false
-exportieren=true
+exportieren=false
+cleanup=false
+upload=true
+waitforinput=false
+
+function wait_for_input() {
+    if [[ $waitforinput == "true" ]]
+    then
+        read -p "( Hit RETURN to continue...)" var_continue
+    fi
+}
 
 # alle Messungen aufholen für alle Zähler Endkunde 1
 
-if [[ $aufholen == "true" ]]
-then
 
-./esz-exporter $PARAMS -modus aufholen -zähler 1 -vereinigung 33
-read
-./esz-exporter $PARAMS -modus aufholen -zähler 2 -vereinigung 34
-read
-./esz-exporter $PARAMS -modus aufholen -zähler 3 -vereinigung 35
-read
-./esz-exporter $PARAMS -modus aufholen -zähler 4 -vereinigung 36
-read
-./esz-exporter $PARAMS -modus aufholen -zähler 5 -vereinigung 37
-read
-./esz-exporter $PARAMS -modus aufholen -zähler 6 -vereinigung 38
-read
-./esz-exporter $PARAMS -modus aufholen -zähler 7 -vereinigung 39
-read
-./esz-exporter $PARAMS -modus aufholen -zähler 8 -vereinigung 40
-read
-./esz-exporter $PARAMS -modus aufholen -zähler 9 -vereinigung 41
-read
-./esz-exporter $PARAMS -modus aufholen -zähler 10 -vereinigung 42
-read
-./esz-exporter $PARAMS -modus aufholen -zähler 11 -vereinigung 43
-read
+echo "updating measurements (esz.messung) with replacements." 
 
+if [[ $aufholen == "true" ]] ;  then
+   for imeter in `seq 1 11`; do
+       replacement=`echo $imeter+32 | bc`
+       echo "started updating data for meter $imeter replacement $replacement"
+       ./esz-exporter $PARAMS -modus aufholen -zähler $imeter -vereinigung $replacement
+       echo "finished updating data for meter $imeter replacement $replacement (Press any key to continue...)"
+       wait_for_input
+   done
 fi
+
+
 
 # Zählersummen sollten für nächsten Schritt vorbereitet sein.
 
 # Export befüllen für Monat
 # für gesamten Endkunden (weil für jeden Endkunden 1 ZIP-Datei)
 
+
 if [[ $befuellen == "true" ]]
 then
-
-./esz-exporter $PARAMS -modus exportbefüllen -kunde $KUNDE -jahr $JAHR -monat $MONAT
-read
-
+    for MONAT in `seq 1 12`; do
+        echo "filling data for month $MONAT of $JAHR"
+        ./esz-exporter $PARAMS -modus exportbefüllen -kunde $KUNDE -jahr $JAHR -monat $MONAT
+        echo "Data has been filled.(Press any key to continue...)"
+        wait_for_input
+    done
 fi
 
 # Export herausziehen für Monat
@@ -60,10 +63,9 @@ fi
 
 if [[ $exportieren == "true" ]]
 then
-
-./esz-exporter $PARAMS -modus exportieren -kunde $KUNDE -jahr $JAHR -monat $MONAT
-#read
-
+    echo "exporting data to zip file"
+    ./esz-exporter $PARAMS -modus exportieren -kunde $KUNDE -jahr $JAHR -monat $MONAT
+    #read
 fi
 
 echo "Fertig."
@@ -74,3 +76,15 @@ echo "Fertig."
 # delete from esz.messung;
 # delete from esz.zaehlersumme where zaehlersum_zeitraum_art != 'Basislinie';
 # delete from esz.export;
+PG_OPTIONS="-h localhost -p 5432 -d analyse1 -U $ZK_PG_USER"
+if [[ $cleanup == "true" ]]
+then
+    PGPASSWORD=$ZK psql $PG_OPTIONS -c "delete from esz.messung;"
+    PGPASSWORD=$ZK psql $PG_OPTIONS -c "delete from esz.export;"
+fi
+
+if [[ $upload == "true" ]]
+then
+    latest_export_zip=`ls -t $EXPORT_DIR/*.zip | head -n 1`
+    curl -v -A "KEY=$ESZ_GEHEIMERKEY" -F "data=$latest_export_zip" https://m2m.test.esz-verwendungsnachweis.de/services/import-esz/validate.php -o /dev/stdout
+fi

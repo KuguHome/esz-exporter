@@ -6,14 +6,13 @@ import (
 	"database/sql"
 	"encoding/csv"
 	"fmt"
+	timeutil "github.com/jinzhu/now"
 	"io"
 	"math"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	timeutil "github.com/jinzhu/now"
 )
 
 func exportBefüllenDurchführen(erledigt chan<- error) {
@@ -364,6 +363,7 @@ func exporttabelleBefüllen(kundeNummer int, jahr int, monat int) (err error) {
 
 	// Anzahl Tage im Monat berechnen
 	monatAnfang := timeutil.Now{Time: time.Date(jahr, time.Month(monat), 1, 0, 0, 0, 0, zeitzone)}
+
 	//monatEnde := now.BeginningOfMonth().AddDate(0, 1, 0).Add(-time.Nanosecond)
 	monatEnde := monatAnfang.EndOfMonth()
 	anzTage := monatEnde.Day() - monatAnfang.Day() + 1
